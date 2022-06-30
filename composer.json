@@ -1,0 +1,13 @@
+{
+    "name": "defox/dutchie",
+    "authors": [
+        {
+            "name": "Muhammad Amjad",
+            "email": "amjad.mghl@gmail.com"
+        }
+    ],
+    "require": {
+        "gmostafa/php-graphql-client": "^1.13",
+        "gmostafa/php-graphql-oqm": "^1.4"
+    }
+}
