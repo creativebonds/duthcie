@@ -1483,10 +1483,15 @@ function dutchie_checkout(){
     }
     $cart=isset($_COOKIE['cart'])?json_decode(stripslashes($_COOKIE['cart'])):array();
    $shipping_type=isset($_COOKIE['shipping_type'])?$_COOKIE['shipping_type']:'DELIVERY';
-   
-
-
-  if($cart){
+   $can_view = false;
+   global $wp_query;
+   if(get_query_var('order-received')!=''){
+       $can_view = true;
+   }
+   if($cart){
+       $can_view = true;
+   }
+  if($can_view){
       
       
       if(!is_user_logged_in()){
@@ -1672,6 +1677,22 @@ function dutchie_get_product($id){
       return $client->getProduct($id);
 }
 
+function dutchie_woo_product_redirect(){
+   global $wp_query;
+   $queried_post_type = get_query_var('post_type');
+   if(is_single() && $queried_post_type =='product'){
+       $queried_post = get_page_by_path($wp_query->query_vars['name'],OBJECT,'product');
+       if($queried_post){
+           wp_redirect( home_url('/prod/'.get_post_meta($queried_post->ID,'_sku',true)), 301 );
+       }else{
+           wp_redirect( home_url('/'), 301 );
+       }
+       
+        exit;
+   }
+}
+add_action('template_redirect','dutchie_woo_product_redirect');
+
 function dutchie_get_product_single(){
     if(isset($_GET['procode'])){
          $res = dutchie_get_product($_GET['procode']);
@@ -1689,29 +1710,15 @@ function dutchie_get_product_single(){
                 $atrs = $product->get_variation_attributes();
                 $vas = array();
                 foreach($atrs as $k=>$v){
-                    $vas['attribute_pa_'.sanitize_title($k)]=$v[0];
+                    $vas['attribute_'.$k]=$v[0];
                 }
-              //  echo '<pre>';
-           //     echo $product_id;
-             //  print_r($vas);
-             //   print_r($childs);
-                print_r($vas);
-                if( !$woocommerce->cart->find_product_in_cart( $product_id ) ){
+                if( !WC()->cart->find_product_in_cart( $product_id ) ){
                     if($childs){
-                        $r = $woocommerce->cart->add_to_cart( $product->get_id(), 1, (int)$childs[0], $vas );
+                        $r = WC()->cart->add_to_cart( $product->get_id(), 1, $childs[0], $vas, array() );
                     }else{
-                        $r = $woocommerce->cart->add_to_cart( $product->get_id(), 1 );
+                        $r = WC()->cart->add_to_cart( $product->get_id(), 1 );
                     }
-                    var_dump($r);
-                   // wc_add_to_cart_message(array($product->get_id() => 1), true);
-                //      echo ' not found';
-                }else{
-                //    echo 'found';
                 }
-         $all_notices = WC()->session->get( 'wc_notices', array() ); 
-         print_r($all_notices);
-       //   die();
-            echo $items = $woocommerce->cart->get_cart_contents_count();
 
                 echo json_encode($res);
             }else{
@@ -1726,7 +1733,43 @@ function dutchie_get_product_single(){
         die();
     }
 }
-add_action('init','dutchie_get_product_single');
+add_action('template_redirect','dutchie_get_product_single');
+
+
+function dutchie_removefromcart(){
+    if(isset($_GET['proid'])){
+         $res = dutchie_get_product($_GET['proid']);
+         if($res){
+            global $woocommerce;
+            $product_id = wc_get_product_id_by_sku($res->id);
+            if(!$product_id){
+                $product_id = add_dutchie_product($res);
+            }
+            $product = wc_get_product($product_id);
+            
+            if($product){
+                $product_cart_id = WC()->cart->generate_cart_id( $product_id );
+                $cart_item_key = WC()->cart->find_product_in_cart( $product_cart_id );
+                if ( $cart_item_key ) {
+                  WC()->cart->remove_cart_item( $cart_item_key );
+                  echo 'success';
+                }else{
+                    echo 'error';
+                }
+                
+            }else{
+                echo 'error';
+            }
+             
+             
+             
+         }else{
+             echo 'error';
+         }
+        die();
+    }
+}
+add_action('template_redirect','dutchie_removefromcart');
 
 add_action('woocommerce_before_shop_loop_item','woocommerce_before_shop_loop_item_custom');
 function woocommerce_before_shop_loop_item_custom(){
@@ -1931,3 +1974,8 @@ function dutchie_remove_woohooks(){
     add_filter( 'woocommerce_add_to_cart_form_action', '__return_empty_string' ); 
 }
 add_action('init','dutchie_remove_woohooks');
+
+function woocommerce_cart_emptied_custom($contents){
+    unset($_COOKIE['cart']);
+}
+add_action('woocommerce_cart_emptied','woocommerce_cart_emptied_custom');
