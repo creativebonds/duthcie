@@ -15,6 +15,7 @@ if ( is_admin() ){
 }
 require plugin_dir_path( __FILE__ ).'includes/dutchie.php';
 require plugin_dir_path( __FILE__ ).'includes/dutchie-woo.php';
+require plugin_dir_path( __FILE__ ).'includes/wp-core-customize.php';
 
 if(isset($_GET['gtest'])){
     echo '<pre>';
@@ -1979,3 +1980,15 @@ function woocommerce_cart_emptied_custom($contents){
     unset($_COOKIE['cart']);
 }
 add_action('woocommerce_cart_emptied','woocommerce_cart_emptied_custom');
+
+function dutchie_search_product(){
+    ob_start();
+    ?><?php
+    
+    $c = ob_get_clean();
+    return $c;
+}
+add_shortcode('dutchie_search_product','dutchie_search_product');
+
+
+
